@@ -1,0 +1,264 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        -96
+      ],
+      "id": "f2b95d2e-efb0-497c-8aca-79d261559e5e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1TxQvsUdVVYoNgiM8SKfrZexl9yWb82gLs6DA8RNMIQY",
+          "mode": "list",
+          "cachedResultName": "Daily Sales",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TxQvsUdVVYoNgiM8SKfrZexl9yWb82gLs6DA8RNMIQY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "الورقة1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TxQvsUdVVYoNgiM8SKfrZexl9yWb82gLs6DA8RNMIQY/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        -96
+      ],
+      "id": "1c4ebfb6-7cd0-423d-8cdc-ee99a09c9364",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5n1ZTwrHvTy8E86N",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sales = items.map(i => parseFloat(i.json.totalSales) || 0);\nconst today = sales[sales.length - 1];\nconst history = sales.slice(0, -1);\nconst avg = history.reduce((a,b) => a+b, 0) / history.length;\nconst stdDev = Math.sqrt(history.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / history.length);\nconst deviation = stdDev > 0 ? (today - avg) / stdDev : 0;\nconst isAnomaly = Math.abs(deviation) > 2;\n\nreturn [{ json: {\n  todaySales: today,\n  averageSales: avg.toFixed(2),\n  deviation: deviation.toFixed(2),\n  isAnomaly,\n  direction: deviation > 0 ? 'ارتفاع' : 'انخفاض'\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -96
+      ],
+      "id": "6ecef110-ca87-4ede-959f-42c85c046dfe",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "18b48cef-7e79-4533-81ea-927771d1d79c",
+              "leftValue": "={{ $json.isAnomaly }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "6ebf1602-f99a-4e98-8a2c-d5491645b23a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=أنت محلل أعمال. فسّر هذا الشذوذ في المبيعات اليومية بأسلوب واضح ومختصر، واقترح أسباب محتملة وإجراءات للتحقق. أعد النتيجة كـ JSON فقط: {\"explanation\": \"...\", \"possible_causes\": [\"...\"], \"suggested_actions\": [\"...\"]}\n\nمبيعات اليوم: {{ $json.todaySales }}\nالمتوسط: {{ $json.averageSales }}\nالاتجاه: {{ $json.direction }}\nدرجة الانحراف: {{ $json.deviation }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "95103e37-ffb7-46f0-9f5b-f96691ef0fec",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        968,
+        136
+      ],
+      "id": "2b226404-5307-4745-836a-e60634eceb77",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "g38xyssK5TRcl82w",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw =$input.first().json.output;\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nconst parsed = JSON.parse(cleaned);\nreturn [{ json: { ...parsed, todaySales:$('Code in JavaScript').first().json.todaySales, direction: $('Code in JavaScript').first().json.direction } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        -96
+      ],
+      "id": "21dcb31a-d2ca-48b8-89d2-1edc0464cc2f",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "text": "=📊 شذوذ في مبيعات اليوم ({{ $json.direction }})  مبيعات اليوم: {{ $json.todaySales }}  التفسير: {{ $json.explanation }}  أسباب محتملة: {{ $json.possible_causes.join('\\n- ') }}  إجراءات مقترحة: {{ $json.suggested_actions.join('\\n- ') }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1488,
+        -96
+      ],
+      "id": "9a81e68f-b6c8-4b8f-bca0-80230e9bc1eb",
+      "name": "Send a text message",
+      "webhookId": "1a8a4149-9629-4a38-baab-c4ca18e5cb3b",
+      "credentials": {
+        "telegramApi": {
+          "id": "8XXAIGIrYUutGL4l",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5a844c6a-60af-4619-8255-75c91cb4d5d9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a5a684b75324e6d2c88eba78c40965ea385652d197518547fda9971ebd20d242"
+  },
+  "nodeGroups": [],
+  "id": "mCQQdCXuh7uYwNr7",
+  "tags": []
+}
