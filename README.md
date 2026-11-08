@@ -2,6 +2,8 @@
 
 I built this n8n workflow to monitor daily sales data, detect unusual changes compared with historical performance, and use AI to explain possible reasons behind the anomaly.
 
+<img width="705" height="202" alt="image" src="https://github.com/user-attachments/assets/5cc4aedd-ca0c-40e1-b2a2-7e950bbe6800" />
+
 ## How it works
 
 1. A scheduled trigger retrieves sales records from Google Sheets.
